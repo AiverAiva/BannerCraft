@@ -8,6 +8,32 @@ type Props = {
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const params = await searchParams;
+  
+  // Return standard site metadata if no parameters are present
+  if (!params.base && !params.layers) {
+    return {
+      title: 'BannerCraft - Minecraft Banner Generator',
+      description: 'A modern, high-fidelity Minecraft Banner Generator with programmatic API support.',
+      openGraph: {
+        title: 'BannerCraft',
+        description: 'A modern, high-fidelity Minecraft Banner Generator with programmatic API support.',
+        url: 'https://banner.weikuwu.me',
+        images: [
+          {
+            url: 'https://banner.weikuwu.me/thumbnail.png',
+            width: 1200,
+            height: 630,
+            alt: 'BannerCraft Thumbnail',
+          },
+        ],
+      },
+      twitter: {
+        card: 'summary_large_image',
+        images: ['https://banner.weikuwu.me/thumbnail.png'],
+      },
+    }
+  }
+
   const base = typeof params.base === 'string' ? params.base : 'red';
   const urlParams = new URLSearchParams()
   urlParams.set('base', base)
@@ -57,8 +83,8 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 
 export async function generateViewport({ searchParams }: Props): Promise<Viewport> {
   const params = await searchParams;
-  const base = typeof params.base === 'string' ? params.base : 'red';
-  const themeColor = BANNER_COLORS[base]?.hex || '#09090b'
+  const base = typeof params.base === 'string' ? params.base : null;
+  const themeColor = base && BANNER_COLORS[base] ? BANNER_COLORS[base].hex : '#09090b'
   
   return {
     themeColor: themeColor
