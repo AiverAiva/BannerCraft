@@ -3,9 +3,26 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useTheme } from 'next-themes'
 import { BANNER_COLORS, BANNER_PATTERNS } from '@/lib/banner-data'
-import { useAutoAnimate } from '@formkit/auto-animate/react'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 interface Layer {
+  id: string
   shape: string
   color: string
 }
@@ -186,19 +203,19 @@ function PatternSelector({ selectedPattern, selectedColor, onSelect, isOpen, onC
         </div>
         <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-7 gap-3">
           {patternNames.map((pattern) => (
-            <PatternThumbnail
-              key={pattern}
-              pattern={pattern}
-              color={selectedColor}
-              size={48}
-              isSelected={selectedPattern === pattern}
-              onClick={() => {
-                onSelect(pattern)
-                onClose()
-              }}
-              isDark={isDark}
-              mounted={mounted}
-            />
+             <PatternThumbnail
+               key={pattern}
+               pattern={pattern}
+               color={selectedColor}
+               size={48}
+               isSelected={selectedPattern === pattern}
+               onClick={() => {
+                 onSelect(pattern)
+                 onClose()
+               }}
+               isDark={isDark}
+               mounted={mounted}
+             />
           ))}
         </div>
       </div>
@@ -206,18 +223,179 @@ function PatternSelector({ selectedPattern, selectedColor, onSelect, isOpen, onC
   )
 }
 
-export default function Home() {
+function SortableLayerItem({
+  layer,
+  index,
+  total,
+  isDark,
+  mounted,
+  colorNames,
+  setOpenPatternSelector,
+  updateLayer,
+  removeLayer,
+  moveLayer,
+}: {
+  layer: Layer
+  index: number
+  total: number
+  isDark: boolean
+  mounted: boolean
+  colorNames: string[]
+  setOpenPatternSelector: (idx: number) => void
+  updateLayer: (idx: number, key: 'shape' | 'color', value: string) => void
+  removeLayer: (idx: number) => void
+  moveLayer: (idx: number, dir: 'up' | 'down') => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: layer.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 2 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`relative flex items-center gap-4 p-4 rounded-xl transition-colors duration-300 border border-border ${
+        isDragging ? 'bg-muted/30 shadow-2xl scale-[1.02]' : 'bg-muted/10 hover:bg-muted/20'
+      }`}
+    >
+      {/* Drag Handle */}
+      <button
+        {...attributes}
+        {...listeners}
+        className="w-6 h-10 flex shrink-0 items-center justify-center text-muted-foreground/40 hover:text-muted-foreground transition-colors cursor-grab active:cursor-grabbing"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="9" cy="12" r="1"></circle>
+          <circle cx="9" cy="5" r="1"></circle>
+          <circle cx="9" cy="19" r="1"></circle>
+          <circle cx="15" cy="12" r="1"></circle>
+          <circle cx="15" cy="5" r="1"></circle>
+          <circle cx="15" cy="19" r="1"></circle>
+        </svg>
+      </button>
+
+      {/* Layer number and Up/Down arrows */}
+      <div className="flex flex-col items-center justify-center shrink-0 w-8 gap-0.5">
+        <button
+          onClick={() => moveLayer(index, 'up')}
+          disabled={index === 0}
+          className="w-6 h-4 flex items-center justify-center rounded transition-colors hover:bg-muted/50 disabled:opacity-20 disabled:hover:bg-transparent"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+        </button>
+        <div
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-semibold bg-muted/50 text-muted-foreground"
+        >
+          {index + 1}
+        </div>
+        <button
+          onClick={() => moveLayer(index, 'down')}
+          disabled={index === total - 1}
+          className="w-6 h-4 flex items-center justify-center rounded transition-colors hover:bg-muted/50 disabled:opacity-20 disabled:hover:bg-transparent"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+      </div>
+
+      {/* Pattern preview - clickable to open selector */}
+      <div
+        className="relative rounded-xl overflow-hidden transition-all duration-200 hover:scale-105 shrink-0"
+        style={{
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          cursor: 'pointer'
+        }}
+        onClick={() => setOpenPatternSelector(index)}
+      >
+        <PatternThumbnail
+          pattern={layer.shape}
+          color={layer.color}
+          size={56}
+          isSelected={false}
+          onClick={() => setOpenPatternSelector(index)}
+          isDark={isDark}
+          mounted={mounted}
+        />
+        <div
+          className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200 pointer-events-none"
+          style={{
+            backgroundColor: 'rgba(0,0,0,0.3)',
+          }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </div>
+      </div>
+
+      {/* Color selection */}
+      <div className="flex flex-wrap gap-1.5 items-center">
+        {colorNames.map((color) => (
+          <button
+            key={color}
+            onClick={() => updateLayer(index, 'color', color)}
+            className="rounded-md transition-all duration-150 focus:outline-none"
+            style={{
+              width: 22,
+              height: 22,
+              backgroundColor: BANNER_COLORS[color].hex,
+              boxShadow: layer.color === color
+                ? `0 0 0 1.5px var(--foreground)`
+                : 'none',
+              transform: layer.color === color ? 'scale(1.15)' : 'scale(1)',
+              opacity: layer.color === color ? 1 : 0.7,
+            }}
+            aria-label={`Set layer color to ${color}`}
+          />
+        ))}
+      </div>
+
+      {/* Remove button */}
+      <button
+        onClick={() => removeLayer(index)}
+        className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110 ml-auto shrink-0"
+        style={{
+          backgroundColor: mounted && isDark ? 'rgba(239,68,68,0.2)' : 'rgba(239,68,68,0.1)',
+          color: '#ef4444',
+        }}
+        aria-label="Remove layer"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <path d="M18 6L6 18M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  )
+}
+
+export default function HomeClient() {
   const { theme, setTheme, resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
   const [mounted, setMounted] = useState(false)
   const [baseColor, setBaseColor] = useState('red')
   const [layers, setLayers] = useState<Layer[]>([
-    { shape: 'curly_border', color: 'black' }
+    { id: 'initial-layer', shape: 'curly_border', color: 'black' }
   ])
   const [dimension, setDimension] = useState<{ type: 'width' | 'height' | null; value: number }>({ type: null, value: 0 })
   const [copied, setCopied] = useState(false)
   const [openPatternSelector, setOpenPatternSelector] = useState<number | null>(null)
-  const [animationParent] = useAutoAnimate()
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
   // Set mounted flag and parse URL
   useEffect(() => {
@@ -237,7 +415,10 @@ export default function Home() {
         try {
           const parsed = JSON.parse(layersStr)
           if (Array.isArray(parsed)) {
-            setLayers(parsed)
+            setLayers(parsed.map((l: any) => ({
+              ...l,
+              id: Math.random().toString(36).slice(2)
+            })))
           }
         } catch (e) {
           console.error("Invalid layers JSON in URL", e)
@@ -251,7 +432,7 @@ export default function Home() {
     const params = new URLSearchParams()
     params.set('base', baseColor)
     if (layers.length > 0) {
-      params.set('layers', JSON.stringify(layers))
+      params.set('layers', JSON.stringify(layers.map(({ shape, color }) => ({ shape, color }))))
     }
     if (dimension.type && dimension.value > 0) {
       params.set(dimension.type, dimension.value.toString())
@@ -266,7 +447,7 @@ export default function Home() {
     const params = new URLSearchParams()
     params.set('base', baseColor)
     if (layers.length > 0) {
-      params.set('layers', JSON.stringify(layers))
+      params.set('layers', JSON.stringify(layers.map(({ shape, color }) => ({ shape, color }))))
     }
     if (dimension.type && dimension.value > 0) {
       params.set(dimension.type, dimension.value.toString())
@@ -297,7 +478,7 @@ export default function Home() {
   // Add new layer
   const addLayer = useCallback(() => {
     if (layers.length < 10) {
-      setLayers([...layers, { shape: 'stripe_bottom', color: 'white' }])
+      setLayers([...layers, { id: Math.random().toString(36).slice(2), shape: 'stripe_bottom', color: 'white' }])
     }
   }, [layers])
 
@@ -312,6 +493,25 @@ export default function Home() {
     newLayers[index] = { ...newLayers[index], [key]: value }
     setLayers(newLayers)
   }, [layers])
+
+  // Move layer up/down
+  const moveLayer = useCallback((index: number, direction: 'up' | 'down') => {
+    if (direction === 'up' && index > 0) {
+      setLayers(arrayMove(layers, index, index - 1))
+    } else if (direction === 'down' && index < layers.length - 1) {
+      setLayers(arrayMove(layers, index, index + 1))
+    }
+  }, [layers])
+
+  // Handle drag and drop
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      const oldIndex = layers.findIndex((l) => l.id === active.id)
+      const newIndex = layers.findIndex((l) => l.id === over.id)
+      setLayers(arrayMove(layers, oldIndex, newIndex))
+    }
+  }
 
   const colorNames = Object.keys(BANNER_COLORS)
 
@@ -419,89 +619,34 @@ export default function Home() {
                     )}
                   </div>
                 </div>
-
-                <div className="space-y-4" ref={animationParent}>
-                  {layers.map((layer, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center gap-4 p-4 rounded-xl transition-all duration-300 border border-border bg-muted/10 hover:bg-muted/20"
-                    >
-                      {/* Layer number */}
-                      <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-semibold shrink-0 bg-muted/50 text-muted-foreground"
-                      >
-                        {index + 1}
-                      </div>
-
-                      {/* Pattern preview - clickable to open selector */}
-                      <div
-                        className="relative rounded-xl overflow-hidden transition-all duration-200 hover:scale-105 shrink-0"
-                        style={{
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                          cursor: 'pointer'
-                        }}
-                        onClick={() => setOpenPatternSelector(index)}
-                      >
-                        <PatternThumbnail
-                          pattern={layer.shape}
-                          color={layer.color}
-                          size={56}
-                          isSelected={false}
-                          onClick={() => setOpenPatternSelector(index)}
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={layers.map((l) => l.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="space-y-4">
+                      {layers.map((layer, index) => (
+                        <SortableLayerItem
+                          key={layer.id}
+                          layer={layer}
+                          index={index}
+                          total={layers.length}
                           isDark={isDark}
                           mounted={mounted}
+                          colorNames={colorNames}
+                          setOpenPatternSelector={setOpenPatternSelector}
+                          updateLayer={updateLayer}
+                          removeLayer={removeLayer}
+                          moveLayer={moveLayer}
                         />
-                        <div
-                          className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200 pointer-events-none"
-                          style={{
-                            backgroundColor: 'rgba(0,0,0,0.3)',
-                          }}
-                        >
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
-                            <path d="M12 5v14M5 12h14" />
-                          </svg>
-                        </div>
-                      </div>
-
-                      {/* Color selection */}
-                      <div className="flex flex-wrap gap-1.5 items-center">
-                        {colorNames.map((color) => (
-                          <button
-                            key={color}
-                            onClick={() => updateLayer(index, 'color', color)}
-                            className="rounded-md transition-all duration-150 focus:outline-none"
-                            style={{
-                              width: 22,
-                              height: 22,
-                              backgroundColor: BANNER_COLORS[color].hex,
-                              boxShadow: layer.color === color
-                                ? `0 0 0 1.5px var(--foreground)`
-                                : 'none',
-                              transform: layer.color === color ? 'scale(1.15)' : 'scale(1)',
-                              opacity: layer.color === color ? 1 : 0.7,
-                            }}
-                            aria-label={`Set layer color to ${color}`}
-                          />
-                        ))}
-                      </div>
-
-                      {/* Remove button */}
-                      <button
-                        onClick={() => removeLayer(index)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 hover:scale-110 ml-auto shrink-0"
-                        style={{
-                          backgroundColor: mounted && isDark ? 'rgba(239,68,68,0.2)' : 'rgba(239,68,68,0.1)',
-                          color: '#ef4444',
-                        }}
-                        aria-label="Remove layer"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                          <path d="M18 6L6 18M6 6l12 12" />
-                        </svg>
-                      </button>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </SortableContext>
+                </DndContext>
 
                 {/* Pattern Selector Modal */}
                 {openPatternSelector !== null && (
