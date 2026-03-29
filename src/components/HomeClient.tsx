@@ -596,27 +596,25 @@ export default function HomeClient() {
                     Layers ({layers.length}/10)
                   </h2>
                   <div className="flex gap-2">
-                    {layers.length > 0 && (
-                      <button
-                        onClick={() => setLayers([])}
-                        className="flex items-center gap-1.5 text-xs font-medium px-4 py-1.5 rounded-lg transition-all duration-200 hover:scale-105 bg-destructive/10 hover:bg-destructive/20 text-destructive"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M3 6h18" />
-                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                        </svg>
-                        Remove All
-                      </button>
-                    )}
-                    {layers.length < 10 && (
-                      <button
-                        onClick={addLayer}
-                        className="text-xs font-medium px-4 py-1.5 rounded-lg transition-all duration-200 hover:scale-105 bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground"
-                      >
-                        + Add Layer
-                      </button>
-                    )}
+                    <button
+                      onClick={() => setLayers([])}
+                      disabled={layers.length === 0}
+                      className="flex items-center gap-1.5 text-xs font-medium px-4 py-1.5 rounded-lg transition-all duration-200 bg-destructive/10 text-destructive hover:scale-105 hover:bg-destructive/20 disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-destructive/10 disabled:cursor-not-allowed"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18" />
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                      </svg>
+                      Remove All
+                    </button>
+                    <button
+                      onClick={addLayer}
+                      disabled={layers.length >= 10}
+                      className="text-xs font-medium px-4 py-1.5 rounded-lg transition-all duration-200 bg-muted/50 text-muted-foreground hover:scale-105 hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-muted/50 disabled:hover:text-muted-foreground disabled:cursor-not-allowed"
+                    >
+                      + Add Layer
+                    </button>
                   </div>
                 </div>
                 <DndContext
