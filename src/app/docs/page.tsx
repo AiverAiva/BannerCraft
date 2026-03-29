@@ -9,11 +9,12 @@ export default function DocsPage() {
       { shape: "cross", color: "blue" },
       { shape: "border", color: "black" }
     ],
-    width: 200
+    width: 200,
+    filetype: "png"
   }, null, 2)
 
   const [playgroundInput, setPlaygroundInput] = useState(defaultPlaygroundJson)
-  const [playgroundResult, setPlaygroundResult] = useState<string | null>(null)
+  const [playgroundResult, setPlaygroundResult] = useState<{ type: 'svg' | 'image', content: string } | null>(null)
   const [playgroundError, setPlaygroundError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -34,12 +35,22 @@ export default function DocsPage() {
       })
       
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to fetch SVG')
+        let errorMessage = 'Failed to fetch image'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+        } catch (_) {}
+        throw new Error(errorMessage)
       }
       
-      const svgText = await response.text()
-      setPlaygroundResult(svgText)
+      const contentType = response.headers.get('Content-Type') || ''
+      if (contentType.includes('svg')) {
+        const svgText = await response.text()
+        setPlaygroundResult({ type: 'svg', content: svgText })
+      } else {
+        const blob = await response.blob()
+        setPlaygroundResult({ type: 'image', content: URL.createObjectURL(blob) })
+      }
     } catch (err: any) {
       setPlaygroundError(err.message)
     } finally {
@@ -73,6 +84,7 @@ export default function DocsPage() {
               <li><code className="text-foreground bg-muted px-1.5 py-0.5 rounded">layers</code> (string) - URL Encoded JSON string representing an array of layer objects.</li>
               <li><code className="text-foreground bg-muted px-1.5 py-0.5 rounded">width</code> (number, optional) - Target width of the SVG in pixels.</li>
               <li><code className="text-foreground bg-muted px-1.5 py-0.5 rounded">height</code> (number, optional) - Target height of the SVG. (Do not provide if width is set).</li>
+              <li><code className="text-foreground bg-muted px-1.5 py-0.5 rounded">filetype</code> (string, optional) - Target export format. Supports <code className="text-foreground">svg</code> (default), <code className="text-foreground">png</code>, <code className="text-foreground">jpg</code>, and <code className="text-foreground">webp</code>.</li>
             </ul>
           </div>
         </section>
@@ -93,7 +105,8 @@ export default function DocsPage() {
     { "shape": "stripe_bottom", "color": "blue" },
     { "shape": "creeper", "color": "white" }
   ],
-  "height": 400
+  "height": 400,
+  "filetype": "png"
 }`}
             </div>
           </div>
@@ -134,13 +147,20 @@ export default function DocsPage() {
                 ) : playgroundResult ? (
                   <div className="flex flex-col items-center justify-center h-full w-full gap-6">
                     <div 
-                      className="border border-border/50 rounded drop-shadow-lg scale-125 origin-center"
-                      dangerouslySetInnerHTML={{ __html: playgroundResult }} 
-                    />
+                      className={`border border-border/50 rounded drop-shadow-lg ${playgroundResult.type === 'svg' ? 'scale-125' : ''} origin-center flex items-center justify-center`}
+                    >
+                      {playgroundResult.type === 'svg' ? (
+                        <div dangerouslySetInnerHTML={{ __html: playgroundResult.content }} />
+                      ) : (
+                        <img src={playgroundResult.content} alt="Rasterized output" className="max-h-[300px] w-auto rounded" style={{ imageRendering: 'pixelated' }} />
+                      )}
+                    </div>
                     <div className="w-full mt-auto">
-                      <div className="text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wider">Raw Response (SVG Markup)</div>
+                      <div className="text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wider">
+                        {playgroundResult.type === 'svg' ? 'Raw Response (SVG Markup)' : 'Raw Response (Blob URL)'}
+                      </div>
                       <div className="bg-background rounded-lg border border-border p-3 text-xs font-mono max-h-32 overflow-y-auto w-full opacity-60">
-                        {playgroundResult}
+                        {playgroundResult.content}
                       </div>
                     </div>
                   </div>

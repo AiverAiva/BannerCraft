@@ -21,9 +21,6 @@ export const metadata: Metadata = {
   description: "Create and customize Minecraft banners with a real-time preview and API generator. Supports layers, colors, and custom dimensions.",
   keywords: ["Minecraft", "Banner", "Creator", "Generator", "API", "Design Tool"],
   authors: [{ name: "AiverAiva" }],
-  icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
-  },
   openGraph: {
     title: "BannerCraft",
     description: "Minecraft Banner Creator with API generator",

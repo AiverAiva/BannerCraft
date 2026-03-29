@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import sharp from 'sharp';
 import { BANNER_COLORS, BANNER_PATTERNS } from '@/lib/banner-data';
 
 export const dynamic = 'force-dynamic';
@@ -166,6 +167,7 @@ function generateBannerSVG(params: BannerParams): string {
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const { params, error } = parseParams(searchParams);
+  const filetype = searchParams.get('filetype') || 'svg';
 
   if (error) {
     return NextResponse.json(
@@ -176,13 +178,42 @@ export async function GET(request: NextRequest) {
 
   const svg = generateBannerSVG(params!);
 
-  return new NextResponse(svg, {
-    status: 200,
-    headers: {
-      'Content-Type': 'image/svg+xml',
-      'Cache-Control': 'public, max-age=31536000',
-    },
-  });
+  try {
+    let bodyData: any = svg;
+    let contentType = 'image/svg+xml';
+    
+    if (filetype !== 'svg') {
+      const buffer = Buffer.from(svg);
+      let sharpInstance = sharp(buffer);
+      
+      if (filetype === 'png') {
+        sharpInstance = sharpInstance.png();
+        contentType = 'image/png';
+        bodyData = await sharpInstance.toBuffer();
+      } else if (filetype === 'jpg' || filetype === 'jpeg') {
+        sharpInstance = sharpInstance.jpeg();
+        contentType = 'image/jpeg';
+        bodyData = await sharpInstance.toBuffer();
+      } else if (filetype === 'webm' || filetype === 'webp') {
+        sharpInstance = sharpInstance.webp();
+        contentType = 'image/webp';
+        bodyData = await sharpInstance.toBuffer();
+      }
+    }
+
+    return new NextResponse(bodyData, {
+      status: 200,
+      headers: {
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=31536000',
+      },
+    });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: 'Failed to process image: ' + err.message, success: false },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -197,6 +228,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { params, error } = validateBannerConfig(body);
+  const filetype = body.filetype || 'svg';
 
   if (error) {
     return NextResponse.json(
@@ -207,12 +239,41 @@ export async function POST(request: NextRequest) {
 
   const svg = generateBannerSVG(params!);
 
-  return new NextResponse(svg, {
-    status: 200,
-    headers: {
-      'Content-Type': 'image/svg+xml',
-      'Cache-Control': 'public, max-age=31536000',
-    },
-  });
+  try {
+    let bodyData: any = svg;
+    let contentType = 'image/svg+xml';
+    
+    if (filetype !== 'svg') {
+      const buffer = Buffer.from(svg);
+      let sharpInstance = sharp(buffer);
+      
+      if (filetype === 'png') {
+        sharpInstance = sharpInstance.png();
+        contentType = 'image/png';
+        bodyData = await sharpInstance.toBuffer();
+      } else if (filetype === 'jpg' || filetype === 'jpeg') {
+        sharpInstance = sharpInstance.jpeg();
+        contentType = 'image/jpeg';
+        bodyData = await sharpInstance.toBuffer();
+      } else if (filetype === 'webm' || filetype === 'webp') {
+        sharpInstance = sharpInstance.webp();
+        contentType = 'image/webp';
+        bodyData = await sharpInstance.toBuffer();
+      }
+    }
+
+    return new NextResponse(bodyData, {
+      status: 200,
+      headers: {
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=31536000',
+      },
+    });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: 'Failed to process image: ' + err.message, success: false },
+      { status: 500 }
+    );
+  }
 }
 

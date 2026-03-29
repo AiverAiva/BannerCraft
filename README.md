@@ -47,13 +47,17 @@ color, map out your Minecraft layers (up to 10 max), and hit **Copy Link**!
 
 ### API Integrations
 
-You can use the API in standard HTML `<img>` tags directly:
+You can use the API in standard HTML `<img>` tags directly. By default, it returns an `image/svg+xml`.
 
 ```html
-<img
-  src="https://banner.weikuwu.me/api/bannerCreate?base=white&layers=[{%22shape%22:%22creeper%22,%22color%22:%22black%22}]"
-  alt="Creeper Banner"
-/>
+<img src="https://banner.weikuwu.me/api/bannerCreate?base=white&layers=[{%22shape%22:%22creeper%22,%22color%22:%22black%22}]" alt="Creeper Banner" />
+```
+
+**Rasterized Output (PNG/JPG/WEBP):** 
+Need to embed the image in social platforms (Discord, Twitter) or applications that don't support raw SVGs? Simply append `&filetype=png` to the URL. The backend will rapidly rasterize your banner into a standard image format using `sharp`! Supported types: `svg` (default), `png`, `jpg`, `webp`.
+
+```html
+<img src="https://banner.weikuwu.me/api/bannerCreate?base=white&layers=...&filetype=png" />
 ```
 
 For large layered banners, bypass URL length restrictions via POST:

@@ -24,6 +24,9 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     urlParams.set('height', params.height)
   }
 
+  // Force OpenGraph metadata to use PNG instead of SVG for Discord/Twitter compatibility
+  urlParams.set('filetype', 'png')
+
   // Use a cache buster strictly equivalent to the ones in Client Component.
   urlParams.set('v', '2')
 
@@ -41,7 +44,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
           width: 300,
           height: 600,
           alt: 'Custom Minecraft Banner',
-          type: 'image/svg+xml'
+          type: 'image/png'
         },
       ],
     },
